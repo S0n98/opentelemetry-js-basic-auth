@@ -59,6 +59,12 @@ export interface ExporterConfig {
    */
   preventServerStart?: boolean;
 
+  basicAuth: boolean;
+
+  username?: string;
+
+  password?: string;
+
   /**
    * **Note, this option is experimental**. Additional MetricProducers to use as a source of
    * aggregated metric data in addition to the SDK's metric data. The resource returned by

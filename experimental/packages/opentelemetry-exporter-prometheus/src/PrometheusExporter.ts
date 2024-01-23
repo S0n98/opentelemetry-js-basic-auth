@@ -34,6 +34,9 @@ export class PrometheusExporter extends MetricReader {
     endpoint: '/metrics',
     prefix: '',
     appendTimestamp: false,
+    basicAuth: false,
+    username: 'admin',
+    password: 'admin',
   };
 
   private readonly _host?: string;
@@ -43,6 +46,9 @@ export class PrometheusExporter extends MetricReader {
   private readonly _server: Server;
   private readonly _prefix?: string;
   private readonly _appendTimestamp: boolean;
+  private readonly _basicAuth: boolean;
+  private readonly _username?: string;
+  private readonly _password?: string;
   private _serializer: PrometheusSerializer;
 
   // This will be required when histogram is implemented. Leaving here so it is not forgotten
@@ -72,6 +78,18 @@ export class PrometheusExporter extends MetricReader {
       config.port ||
       Number(process.env.OTEL_EXPORTER_PROMETHEUS_PORT) ||
       PrometheusExporter.DEFAULT_OPTIONS.port;
+    this._basicAuth =
+        config.basicAuth ||
+            process.env.OTEL_EXPORTER_PROMETHEUS_BASIC_AUTH ||
+            PrometheusExporter.DEFAULT_OPTIONS.basicAuth;
+    this._username =
+        config.username ||
+            process.env.OTEL_EXPORTER_PROMETHEUS_USERNAME ||
+            PrometheusExporter.DEFAULT_OPTIONS.username;
+    this._password =
+        config.password ||
+            process.env.OTEL_EXPORTER_PROMETHEUS_PASSWORD ||
+            PrometheusExporter.DEFAULT_OPTIONS.password;
     this._prefix = config.prefix || PrometheusExporter.DEFAULT_OPTIONS.prefix;
     this._appendTimestamp =
       typeof config.appendTimestamp === 'boolean'
@@ -182,6 +200,17 @@ export class PrometheusExporter extends MetricReader {
     request: IncomingMessage,
     response: ServerResponse
   ) => {
+    if (this._basicAuth) {
+      const userpass = Buffer.from(
+          (request.headers.authorization || '').split(' ')[1] || '',
+          'base64'
+      ).toString();
+      if (userpass !== `${this._username}:${this._password}`) {
+          response.statusCode = 401;
+          response.end('HTTP Error 401 Unauthorized: Access is denied');
+          return;
+      }
+    }
     if (
       request.url != null &&
       new URL(request.url, this._baseUrl).pathname === this._endpoint
